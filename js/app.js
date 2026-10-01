@@ -1,58 +1,17 @@
-const DEVICES = [
-  {
-    id: "17pm",
-    name: "iPhone 17 Pro Max",
-    folder: "idevice/iphone/iPhone 17 Pro Max",
-    file: "iPhone 17 Pro Max",
-    colors: [["", "Titan"], [" Cosmic Orange", "Cosmic Orange"], [" Deep Blue", "Deep Blue"], [" Silver", "Silver"]],
-    screen: {
-      Portrait: { x: 75, y: 66, w: 1320, h: 2868 },
-      Landscape: { x: 66, y: 75, w: 2868, h: 1320 }
-    }
-  },
-  {
-    id: "17p",
-    name: "iPhone 17 Pro",
-    folder: "idevice/iphone/iPhone 17 Pro",
-    file: "iPhone 17 Pro",
-    colors: [["", "Titan"], [" Cosmic Orange", "Cosmic Orange"], [" Deep Blue", "Deep Blue"], [" Silver", "Silver"]],
-    screen: {
-      Portrait: { x: 72, y: 69, w: 1206, h: 2622 },
-      Landscape: { x: 69, y: 72, w: 2622, h: 1206 }
-    }
-  },
-  {
-    id: "17",
-    name: "iPhone 17",
-    folder: "idevice/iphone/iPhone 17",
-    file: "iPhone 17",
-    colors: [["", "Gốc"], [" Black", "Black"], [" Lavender", "Lavender"], [" Mist Blue", "Mist Blue"], [" Sage", "Sage"], [" White", "White"]],
-    screen: {
-      Portrait: { x: 72, y: 69, w: 1206, h: 2622 },
-      Landscape: { x: 69, y: 72, w: 2622, h: 1206 }
-    }
-  }
-];
-
+const REPO = "dammeiosvn/iDevice-Screenshort";
 const $ = (id) => document.getElementById(id);
 const view = $("view");
 const vctx = view.getContext("2d");
-const state = {
-  device: 0,
-  color: 0,
-  orient: "Portrait",
-  mode: "fill",
-  shot: null,
-  panX: 0.5,
-  panY: 0.5
-};
-const cache = new Map();
-const maskCache = new Map();
+const holes = new Map();
+const images = new Map();
+const masks = new Map();
+let devices = [];
+let state = { device: 0, color: 0, orient: "Portrait", mode: "fill", shot: null, panX: 0.5, panY: 0.5 };
 let raf = 0;
 let painting = false;
 
 function loadImage(src) {
-  if (cache.has(src)) return cache.get(src);
+  if (images.has(src)) return images.get(src);
   const p = new Promise((resolve, reject) => {
     const img = new Image();
     img.decoding = "async";
@@ -60,16 +19,16 @@ function loadImage(src) {
     img.onerror = reject;
     img.src = src;
   });
-  cache.set(src, p);
+  images.set(src, p);
   return p;
 }
 
 function maskAlpha(img, key) {
-  if (maskCache.has(key)) return maskCache.get(key);
+  if (masks.has(key)) return masks.get(key);
   const c = document.createElement("canvas");
   c.width = img.width;
   c.height = img.height;
-  const x = c.getContext("2d");
+  const x = c.getContext("2d", { willReadFrequently: true });
   x.drawImage(img, 0, 0);
   const data = x.getImageData(0, 0, c.width, c.height);
   const d = data.data;
@@ -78,16 +37,105 @@ function maskAlpha(img, key) {
     d[i] = d[i + 1] = d[i + 2] = 255;
   }
   x.putImageData(data, 0, 0);
-  maskCache.set(key, c);
+  masks.set(key, c);
   return c;
 }
 
-function device() { return DEVICES[state.device]; }
+function measureHole(img) {
+  const c = document.createElement("canvas");
+  c.width = img.width;
+  c.height = img.height;
+  const x = c.getContext("2d", { willReadFrequently: true });
+  x.drawImage(img, 0, 0);
+  const { data, width: w, height: h } = x.getImageData(0, 0, c.width, c.height);
+  const A = (px, py) => data[(py * w + px) * 4 + 3];
+  let x0 = w, y0 = h, x1 = 0, y1 = 0;
+  for (let y = 0; y < h; y += 3) {
+    for (let px = 0; px < w; px += 3) {
+      if (A(px, y) > 40) {
+        if (px < x0) x0 = px;
+        if (y < y0) y0 = y;
+        if (px > x1) x1 = px;
+        if (y > y1) y1 = y;
+      }
+    }
+  }
+  const ym = (y0 + y1) >> 1;
+  const xm = (x0 + x1) >> 1;
+  let holeL = x0;
+  let seen = false;
+  for (let px = x0; px < x1; px++) {
+    if (A(px, ym) > 40) seen = true;
+    else if (seen && A(px, ym) < 16) { holeL = px; break; }
+  }
+  let holeR = x1;
+  seen = false;
+  for (let px = x1; px > x0; px--) {
+    if (A(px, ym) > 40) seen = true;
+    else if (seen && A(px, ym) < 16) { holeR = px; break; }
+  }
+  let holeT = y0;
+  seen = false;
+  for (let py = y0; py < y1; py++) {
+    if (A(xm, py) > 40) seen = true;
+    else if (seen && A(xm, py) < 16) { holeT = py; break; }
+  }
+  let holeB = y1;
+  seen = false;
+  for (let py = y1; py > y0; py--) {
+    if (A(xm, py) > 40) seen = true;
+    else if (seen && A(xm, py) < 16) { holeB = py; break; }
+  }
+  return { x: holeL, y: holeT, w: holeR - holeL + 1, h: holeB - holeT + 1 };
+}
+
+function parseTree(paths) {
+  const models = new Map();
+  paths.forEach((path) => {
+    if (!path.startsWith("idevice/") || !path.endsWith(".png")) return;
+    const parts = path.split("/");
+    if (parts.length < 4) return;
+    const model = parts[2];
+    const file = parts.slice(3).join("/");
+    if (!models.has(model)) models.set(model, { name: model, folder: parts.slice(0, 3).join("/"), colors: new Map(), orients: new Set() });
+    const m = models.get(model);
+    const orient = file.includes("Landscape") ? "Landscape" : file.includes("Portrait") ? "Portrait" : "";
+    if (!orient) return;
+    m.orients.add(orient);
+    if (file.includes("_mask.png")) return;
+    const prefix = model + " " + orient;
+    const color = file.slice(prefix.length).replace(/\.png$/, "").trim();
+    m.colors.set(color, color || "Gốc");
+  });
+  return [...models.values()].map((m) => ({
+    name: m.name,
+    folder: m.folder,
+    orients: [...m.orients],
+    colors: [...m.colors.keys()].sort().map((c) => [c ? " " + c : "", c || "Gốc"])
+  })).filter((m) => m.colors.length);
+}
+
+async function loadCatalog() {
+  try {
+    const res = await fetch(`https://api.github.com/repos/${REPO}/git/trees/main?recursive=1`);
+    const data = await res.json();
+    const list = parseTree((data.tree || []).map((t) => t.path));
+    if (list.length) return list;
+  } catch (e) {}
+  return parseTree([
+    "idevice/iphone/iPhone 17 Pro Max/iPhone 17 Pro Max Portrait.png",
+    "idevice/iphone/iPhone 17 Pro/iPhone 17 Pro Portrait.png",
+    "idevice/iphone/iPhone 17/iPhone 17 Portrait.png",
+    "idevice/iphone/iPhone 16/iPhone 16 Portrait Black.png"
+  ]);
+}
+
+function device() { return devices[state.device]; }
 
 function paths() {
   const d = device();
   const color = d.colors[state.color][0];
-  const base = `${d.folder}/${d.file} ${state.orient}`;
+  const base = `${d.folder}/${d.name} ${state.orient}`;
   return { frame: `${base}${color}.png`, mask: `${base}_mask.png` };
 }
 
@@ -138,12 +186,17 @@ function drawSign(ctx, w, h) {
   ctx.restore();
 }
 
+async function screenOf(frameImg) {
+  const key = device().folder + state.orient;
+  if (!holes.has(key)) holes.set(key, measureHole(frameImg));
+  return holes.get(key);
+}
+
 async function compose() {
-  const d = device();
-  const screen = d.screen[state.orient];
   const { frame, mask } = paths();
   const [frameImg, maskImg] = await Promise.all([loadImage(frame), loadImage(mask)]);
-  const pad = $("shadow").checked ? Math.round(frameImg.width * 0.06) : 0;
+  const screen = await screenOf(frameImg);
+  const pad = $("shadow").checked ? Math.round(frameImg.width * 0.04) : 0;
   const layer = document.createElement("canvas");
   layer.width = frameImg.width;
   layer.height = frameImg.height;
@@ -167,16 +220,16 @@ async function compose() {
     x.fillRect(0, 0, c.width, c.height);
   }
   if (pad) {
-    x.shadowColor = "rgba(0,0,0,.35)";
+    x.shadowColor = "rgba(0,0,0,.28)";
     x.shadowBlur = pad;
-    x.shadowOffsetY = pad * 0.35;
+    x.shadowOffsetY = pad * 0.3;
   }
   x.drawImage(layer, pad, pad);
   return c;
 }
 
 async function paint() {
-  if (painting) return;
+  if (painting || !devices.length) return;
   painting = true;
   try {
     const c = await compose();
@@ -199,33 +252,43 @@ function requestPaint() {
   raf = requestAnimationFrame(() => { raf = 0; paint(); });
 }
 
+function syncTools() {
+  document.querySelectorAll("#tools button").forEach((b) => {
+    const on = b.dataset.k === "orient" ? b.dataset.v === state.orient : b.dataset.v === state.mode;
+    b.classList.toggle("on", on);
+  });
+}
+
 function renderColors() {
   const box = $("colors");
   box.replaceChildren();
-  device().colors.forEach((c, i) => {
+  const d = device();
+  $("colorBtn").textContent = d.colors[state.color][1];
+  d.colors.forEach((c, i) => {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "chip" + (i === state.color ? " on" : "");
     b.textContent = c[1];
-    b.onclick = () => { state.color = i; renderColors(); requestPaint(); };
+    b.onclick = () => {
+      state.color = i;
+      $("colorSheet").hidden = true;
+      renderColors();
+      requestPaint();
+    };
     box.appendChild(b);
   });
 }
 
 function fillDevices() {
   const sel = $("device");
-  DEVICES.forEach((d, i) => {
+  sel.replaceChildren();
+  devices.forEach((d, i) => {
     const o = document.createElement("option");
     o.value = i;
     o.textContent = d.name;
     sel.appendChild(o);
   });
-}
-
-function setOrient(o, skip) {
-  state.orient = o;
-  document.querySelectorAll("#orient button").forEach((b) => b.classList.toggle("on", b.dataset.o === o));
-  if (!skip) requestPaint();
+  sel.value = state.device;
 }
 
 function readShot(file) {
@@ -234,34 +297,38 @@ function readShot(file) {
     state.shot = img;
     state.panX = 0.5;
     state.panY = 0.5;
-    setOrient(img.width > img.height ? "Landscape" : "Portrait", true);
+    if (device().orients.includes(img.width > img.height ? "Landscape" : "Portrait")) {
+      state.orient = img.width > img.height ? "Landscape" : "Portrait";
+      syncTools();
+    }
     requestPaint();
   };
   img.src = URL.createObjectURL(file);
 }
 
-$("pick").onclick = () => $("file").click();
 $("empty").onclick = () => $("file").click();
-$("cam").onclick = () => $("fileCam").click();
 $("file").onchange = () => $("file").files[0] && readShot($("file").files[0]);
-$("fileCam").onchange = () => $("fileCam").files[0] && readShot($("fileCam").files[0]);
-$("device").onchange = () => { state.device = +$("device").value; state.color = 0; renderColors(); requestPaint(); };
-$("orient").onclick = (e) => { const b = e.target.closest("button"); if (b) setOrient(b.dataset.o); };
-$("fit").onclick = (e) => {
+$("device").onchange = () => {
+  state.device = +$("device").value;
+  state.color = 0;
+  if (!device().orients.includes(state.orient)) state.orient = device().orients[0];
+  syncTools();
+  renderColors();
+  requestPaint();
+};
+$("colorBtn").onclick = () => { $("colorSheet").hidden = false; };
+$("colorClose").onclick = () => { $("colorSheet").hidden = true; };
+$("colorSheet").onclick = (e) => { if (e.target === $("colorSheet")) $("colorSheet").hidden = true; };
+$("tools").onclick = (e) => {
   const b = e.target.closest("button");
   if (!b) return;
-  state.mode = b.dataset.m;
-  document.querySelectorAll("#fit button").forEach((n) => n.classList.toggle("on", n === b));
+  if (b.dataset.k === "orient" && device().orients.includes(b.dataset.v)) state.orient = b.dataset.v;
+  if (b.dataset.k === "mode") state.mode = b.dataset.v;
+  syncTools();
   requestPaint();
 };
 $("bg").onchange = requestPaint;
-$("bgDot").style.background = $("bgColor").value;
-$("bgDot").onclick = () => $("bgColor").click();
-$("bgColor").oninput = () => {
-  $("bg").value = "custom";
-  $("bgDot").style.background = $("bgColor").value;
-  requestPaint();
-};
+$("bgColor").oninput = () => { $("bg").value = "custom"; requestPaint(); };
 $("shadow").onchange = requestPaint;
 $("signBtn").onclick = () => { $("sheet").hidden = false; };
 $("sheetClose").onclick = () => { $("sheet").hidden = true; };
@@ -279,14 +346,14 @@ $("sheet").onclick = (e) => { if (e.target === $("sheet")) $("sheet").hidden = t
 
 let drag = null;
 view.onpointerdown = (e) => {
-  if (state.mode !== "fill") return;
+  if (state.mode !== "fill" || e.target === $("empty")) return;
   drag = { x: e.clientX, y: e.clientY, px: state.panX, py: state.panY };
   view.setPointerCapture(e.pointerId);
 };
 view.onpointermove = (e) => {
   if (!drag || !state.shot) return;
-  state.panX = Math.min(1, Math.max(0, drag.px - (e.clientX - drag.x) / 280));
-  state.panY = Math.min(1, Math.max(0, drag.py - (e.clientY - drag.y) / 280));
+  state.panX = Math.min(1, Math.max(0, drag.px - (e.clientX - drag.x) / 220));
+  state.panY = Math.min(1, Math.max(0, drag.py - (e.clientY - drag.y) / 220));
   requestPaint();
 };
 view.onpointerup = () => { drag = null; };
@@ -305,10 +372,13 @@ $("share").onclick = async () => {
   a.click();
 };
 
-fillDevices();
-renderColors();
-setOrient("Portrait", true);
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", requestPaint);
-addEventListener("resize", requestPaint);
-if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
-requestPaint();
+loadCatalog().then((list) => {
+  devices = list;
+  fillDevices();
+  renderColors();
+  syncTools();
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", requestPaint);
+  addEventListener("resize", requestPaint);
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
+  requestPaint();
+});
