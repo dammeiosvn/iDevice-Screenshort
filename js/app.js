@@ -4,12 +4,7 @@ const DEVICES = [
     name: "iPhone 17 Pro Max",
     folder: "idevice/iphone/iPhone 17 Pro Max",
     file: "iPhone 17 Pro Max",
-    colors: [
-      ["", "Titan"],
-      [" Cosmic Orange", "Cosmic Orange"],
-      [" Deep Blue", "Deep Blue"],
-      [" Silver", "Silver"]
-    ],
+    colors: [["", "Titan"], [" Cosmic Orange", "Cosmic Orange"], [" Deep Blue", "Deep Blue"], [" Silver", "Silver"]],
     screen: {
       Portrait: { x: 75, y: 66, w: 1320, h: 2868 },
       Landscape: { x: 66, y: 75, w: 2868, h: 1320 }
@@ -20,12 +15,7 @@ const DEVICES = [
     name: "iPhone 17 Pro",
     folder: "idevice/iphone/iPhone 17 Pro",
     file: "iPhone 17 Pro",
-    colors: [
-      ["", "Titan"],
-      [" Cosmic Orange", "Cosmic Orange"],
-      [" Deep Blue", "Deep Blue"],
-      [" Silver", "Silver"]
-    ],
+    colors: [["", "Titan"], [" Cosmic Orange", "Cosmic Orange"], [" Deep Blue", "Deep Blue"], [" Silver", "Silver"]],
     screen: {
       Portrait: { x: 72, y: 69, w: 1206, h: 2622 },
       Landscape: { x: 69, y: 72, w: 2622, h: 1206 }
@@ -36,14 +26,7 @@ const DEVICES = [
     name: "iPhone 17",
     folder: "idevice/iphone/iPhone 17",
     file: "iPhone 17",
-    colors: [
-      ["", "Gốc"],
-      [" Black", "Black"],
-      [" Lavender", "Lavender"],
-      [" Mist Blue", "Mist Blue"],
-      [" Sage", "Sage"],
-      [" White", "White"]
-    ],
+    colors: [["", "Gốc"], [" Black", "Black"], [" Lavender", "Lavender"], [" Mist Blue", "Mist Blue"], [" Sage", "Sage"], [" White", "White"]],
     screen: {
       Portrait: { x: 72, y: 69, w: 1206, h: 2622 },
       Landscape: { x: 69, y: 72, w: 2622, h: 1206 }
@@ -58,17 +41,21 @@ const state = {
   device: 0,
   color: 0,
   orient: "Portrait",
+  mode: "fill",
   shot: null,
   panX: 0.5,
-  panY: 0.5,
-  zoom: 1
+  panY: 0.5
 };
 const cache = new Map();
+const maskCache = new Map();
+let raf = 0;
+let painting = false;
 
 function loadImage(src) {
   if (cache.has(src)) return cache.get(src);
   const p = new Promise((resolve, reject) => {
     const img = new Image();
+    img.decoding = "async";
     img.onload = () => resolve(img);
     img.onerror = reject;
     img.src = src;
@@ -77,7 +64,6 @@ function loadImage(src) {
   return p;
 }
 
-const maskCache = new Map();
 function maskAlpha(img, key) {
   if (maskCache.has(key)) return maskCache.get(key);
   const c = document.createElement("canvas");
@@ -102,10 +88,7 @@ function paths() {
   const d = device();
   const color = d.colors[state.color][0];
   const base = `${d.folder}/${d.file} ${state.orient}`;
-  return {
-    frame: `${base}${color}.png`,
-    mask: `${base}_mask.png`
-  };
+  return { frame: `${base}${color}.png`, mask: `${base}_mask.png` };
 }
 
 function systemBg() {
@@ -121,6 +104,40 @@ function bgColor() {
   return $("bgColor").value;
 }
 
+function shotRect(screen) {
+  if (!state.shot) return null;
+  const ir = state.shot.width / state.shot.height;
+  const sr = screen.w / screen.h;
+  let sw, sh, ix, iy;
+  if (state.mode === "fit") {
+    if (ir > sr) { sw = state.shot.width; sh = sw / sr; }
+    else { sh = state.shot.height; sw = sh * sr; }
+    ix = (state.shot.width - sw) / 2;
+    iy = (state.shot.height - sh) / 2;
+  } else {
+    if (ir > sr) { sh = state.shot.height; sw = sh * sr; }
+    else { sw = state.shot.width; sh = sw / sr; }
+    ix = (state.shot.width - sw) * state.panX;
+    iy = (state.shot.height - sh) * state.panY;
+  }
+  return { ix, iy, sw, sh };
+}
+
+function drawSign(ctx, w, h) {
+  const name = $("signName").value.trim();
+  if (!name) return;
+  const size = +$("size").value * (w / 1470);
+  ctx.save();
+  ctx.translate((+$("sx").value / 100) * w, (+$("sy").value / 100) * h);
+  ctx.rotate((+$("rot").value * Math.PI) / 180);
+  ctx.fillStyle = `hsl(${$("hue").value} 80% 55%)`;
+  ctx.font = `600 ${size}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(name, 0, 0);
+  ctx.restore();
+}
+
 async function compose() {
   const d = device();
   const screen = d.screen[state.orient];
@@ -131,17 +148,15 @@ async function compose() {
   layer.width = frameImg.width;
   layer.height = frameImg.height;
   const lx = layer.getContext("2d");
-  if (state.shot) {
-    const sw = screen.w / state.zoom;
-    const sh = screen.h / state.zoom;
-    const ix = (state.shot.width - sw) * state.panX;
-    const iy = (state.shot.height - sh) * state.panY;
-    lx.drawImage(state.shot, ix, iy, sw, sh, screen.x, screen.y, screen.w, screen.h);
+  const rect = shotRect(screen);
+  if (rect) {
+    lx.drawImage(state.shot, rect.ix, rect.iy, rect.sw, rect.sh, screen.x, screen.y, screen.w, screen.h);
     lx.globalCompositeOperation = "destination-in";
     lx.drawImage(maskAlpha(maskImg, mask), screen.x, screen.y, screen.w, screen.h);
     lx.globalCompositeOperation = "source-over";
   }
   lx.drawImage(frameImg, 0, 0);
+  drawSign(lx, layer.width, layer.height);
   const c = document.createElement("canvas");
   c.width = frameImg.width + pad * 2;
   c.height = frameImg.height + pad * 2;
@@ -161,28 +176,38 @@ async function compose() {
 }
 
 async function paint() {
-  const c = await compose();
-  const r = view.getBoundingClientRect();
-  const dpr = devicePixelRatio || 1;
-  view.width = Math.max(1, r.width * dpr);
-  view.height = Math.max(1, r.height * dpr);
-  vctx.clearRect(0, 0, view.width, view.height);
-  const s = Math.min(view.width / c.width, view.height / c.height);
-  const w = c.width * s;
-  const h = c.height * s;
-  vctx.drawImage(c, (view.width - w) / 2, (view.height - h) / 2, w, h);
-  $("empty").hidden = !!state.shot;
+  if (painting) return;
+  painting = true;
+  try {
+    const c = await compose();
+    const r = view.getBoundingClientRect();
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    view.width = Math.max(1, Math.round(r.width * dpr));
+    view.height = Math.max(1, Math.round(r.height * dpr));
+    vctx.clearRect(0, 0, view.width, view.height);
+    const s = Math.min(view.width / c.width, view.height / c.height);
+    const w = c.width * s;
+    const h = c.height * s;
+    vctx.drawImage(c, (view.width - w) / 2, (view.height - h) / 2, w, h);
+    $("empty").hidden = !!state.shot;
+  } catch (e) {}
+  painting = false;
+}
+
+function requestPaint() {
+  if (raf) return;
+  raf = requestAnimationFrame(() => { raf = 0; paint(); });
 }
 
 function renderColors() {
   const box = $("colors");
-  box.innerHTML = "";
+  box.replaceChildren();
   device().colors.forEach((c, i) => {
     const b = document.createElement("button");
     b.type = "button";
     b.className = "chip" + (i === state.color ? " on" : "");
     b.textContent = c[1];
-    b.onclick = () => { state.color = i; renderColors(); paint(); };
+    b.onclick = () => { state.color = i; renderColors(); requestPaint(); };
     box.appendChild(b);
   });
 }
@@ -197,12 +222,10 @@ function fillDevices() {
   });
 }
 
-function setOrient(o, fromShot) {
+function setOrient(o, skip) {
   state.orient = o;
-  document.querySelectorAll("#orient button").forEach((b) => {
-    b.classList.toggle("on", b.dataset.o === o);
-  });
-  if (!fromShot) paint();
+  document.querySelectorAll("#orient button").forEach((b) => b.classList.toggle("on", b.dataset.o === o));
+  if (!skip) requestPaint();
 }
 
 function readShot(file) {
@@ -211,43 +234,52 @@ function readShot(file) {
     state.shot = img;
     state.panX = 0.5;
     state.panY = 0.5;
-    state.zoom = 1;
-    $("zoom").value = 100;
-    $("zoomVal").textContent = "100%";
     setOrient(img.width > img.height ? "Landscape" : "Portrait", true);
-    paint();
+    requestPaint();
   };
   img.src = URL.createObjectURL(file);
 }
 
 $("pick").onclick = () => $("file").click();
+$("empty").onclick = () => $("file").click();
 $("cam").onclick = () => $("fileCam").click();
 $("file").onchange = () => $("file").files[0] && readShot($("file").files[0]);
 $("fileCam").onchange = () => $("fileCam").files[0] && readShot($("fileCam").files[0]);
-$("device").onchange = () => {
-  state.device = +$("device").value;
-  state.color = 0;
-  renderColors();
-  paint();
-};
-$("orient").onclick = (e) => {
+$("device").onchange = () => { state.device = +$("device").value; state.color = 0; renderColors(); requestPaint(); };
+$("orient").onclick = (e) => { const b = e.target.closest("button"); if (b) setOrient(b.dataset.o); };
+$("fit").onclick = (e) => {
   const b = e.target.closest("button");
-  if (b) setOrient(b.dataset.o);
+  if (!b) return;
+  state.mode = b.dataset.m;
+  document.querySelectorAll("#fit button").forEach((n) => n.classList.toggle("on", n === b));
+  requestPaint();
 };
-$("bg").onchange = () => {
-  $("bgPick").hidden = $("bg").value !== "custom";
-  paint();
+$("bg").onchange = requestPaint;
+$("bgDot").style.background = $("bgColor").value;
+$("bgDot").onclick = () => $("bgColor").click();
+$("bgColor").oninput = () => {
+  $("bg").value = "custom";
+  $("bgDot").style.background = $("bgColor").value;
+  requestPaint();
 };
-$("bgColor").oninput = () => paint();
-$("shadow").onchange = () => paint();
-$("zoom").oninput = () => {
-  state.zoom = +$("zoom").value / 100;
-  $("zoomVal").textContent = $("zoom").value + "%";
-  paint();
-};
+$("shadow").onchange = requestPaint;
+$("signBtn").onclick = () => { $("sheet").hidden = false; };
+$("sheetClose").onclick = () => { $("sheet").hidden = true; };
+$("sheet").onclick = (e) => { if (e.target === $("sheet")) $("sheet").hidden = true; };
+["signName", "hue", "size", "rot", "sx", "sy"].forEach((id) => {
+  $(id).oninput = () => {
+    $("hueVal").textContent = $("hue").value;
+    $("sizeVal").textContent = $("size").value;
+    $("rotVal").textContent = $("rot").value + "°";
+    $("sxVal").textContent = $("sx").value;
+    $("syVal").textContent = $("sy").value;
+    requestPaint();
+  };
+});
 
 let drag = null;
 view.onpointerdown = (e) => {
+  if (state.mode !== "fill") return;
   drag = { x: e.clientX, y: e.clientY, px: state.panX, py: state.panY };
   view.setPointerCapture(e.pointerId);
 };
@@ -255,28 +287,28 @@ view.onpointermove = (e) => {
   if (!drag || !state.shot) return;
   state.panX = Math.min(1, Math.max(0, drag.px - (e.clientX - drag.x) / 280));
   state.panY = Math.min(1, Math.max(0, drag.py - (e.clientY - drag.y) / 280));
-  paint();
+  requestPaint();
 };
 view.onpointerup = () => { drag = null; };
 
 $("share").onclick = async () => {
   const c = await compose();
   const blob = await new Promise((r) => c.toBlob(r, "image/png"));
-  const file = new File([blob], "khung-may.png", { type: "image/png" });
+  const file = new File([blob], "iscreenshort.png", { type: "image/png" });
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     await navigator.share({ files: [file] });
     return;
   }
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = "khung-may.png";
+  a.download = "iscreenshort.png";
   a.click();
 };
 
 fillDevices();
 renderColors();
 setOrient("Portrait", true);
-matchMedia("(prefers-color-scheme: dark)").addEventListener("change", paint);
-addEventListener("resize", paint);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", requestPaint);
+addEventListener("resize", requestPaint);
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
-paint();
+requestPaint();

@@ -6,26 +6,29 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Khung Máy">
+  <meta name="apple-mobile-web-app-title" content="iScreenshort+">
   <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
-  <title>Khung Máy</title>
+  <title>iScreenshort+</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="icon" href="icon-180.png">
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=2">
 </head>
 <body>
   <header class="top">
-    <h1>Khung Máy</h1>
+    <h1>iScreenshort+</h1>
     <button type="button" id="share" class="go">Xuất</button>
   </header>
 
   <main>
     <section class="stage" id="stage">
       <canvas id="view"></canvas>
-      <p class="empty" id="empty">Chọn ảnh chụp màn hình</p>
+      <button type="button" class="empty" id="empty">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 5h6"/><path d="M19 2v6"/><path d="M21 11.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7.5"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/><circle cx="9" cy="9" r="2"/></svg>
+        thêm ảnh
+      </button>
     </section>
 
     <section class="panel">
@@ -45,6 +48,11 @@
         <button type="button" data-o="Landscape">Ngang</button>
       </div>
 
+      <div class="seg" id="fit">
+        <button type="button" data-m="fit">Fit</button>
+        <button type="button" data-m="fill" class="on">Fill</button>
+      </div>
+
       <label class="field">Nền xuất
         <select id="bg">
           <option value="clear">Trong suốt</option>
@@ -54,22 +62,49 @@
           <option value="custom">Màu</option>
         </select>
       </label>
-      <label class="swatch" id="bgPick" hidden>
-        <input id="bgColor" type="color" value="#f2f2f7">
-        <span>Màu nền</span>
-      </label>
 
-      <label class="slide">Phóng <em id="zoomVal">100%</em>
-        <input id="zoom" type="range" min="100" max="180" value="100">
-      </label>
+      <div class="color-line">
+        <span>Màu nền</span>
+        <button type="button" class="dot" id="bgDot" aria-label="Chọn màu nền"></button>
+        <input id="bgColor" type="color" value="#0a84ff" hidden>
+      </div>
+
       <label class="check"><input id="shadow" type="checkbox" checked><span>Bóng đổ</span></label>
+      <button type="button" class="file" id="signBtn">Ký tên</button>
     </section>
   </main>
 
   <p class="hint" id="hint">Safari → Chia sẻ → Thêm vào Màn hình chính</p>
 
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet-card">
+      <div class="sheet-head">
+        <strong>Ký tên</strong>
+        <button type="button" id="sheetClose">Đóng</button>
+      </div>
+      <label class="field">Tên
+        <input id="signName" maxlength="32" placeholder="Tên" autocomplete="off">
+      </label>
+      <label class="slide">Màu <em id="hueVal">200</em>
+        <input id="hue" type="range" min="0" max="360" value="200">
+      </label>
+      <label class="slide">Cỡ <em id="sizeVal">48</em>
+        <input id="size" type="range" min="16" max="160" value="48">
+      </label>
+      <label class="slide">Xoay <em id="rotVal">0°</em>
+        <input id="rot" type="range" min="-180" max="180" value="0">
+      </label>
+      <label class="slide">Ngang <em id="sxVal">50</em>
+        <input id="sx" type="range" min="0" max="100" value="50">
+      </label>
+      <label class="slide">Dọc <em id="syVal">92</em>
+        <input id="sy" type="range" min="0" max="100" value="92">
+      </label>
+    </div>
+  </div>
+
   <input id="file" type="file" accept="image/*" hidden>
   <input id="fileCam" type="file" accept="image/*" capture="environment" hidden>
-  <script src="js/app.js" defer></script>
+  <script src="js/app.js?v=2" defer></script>
 </body>
 </html>
