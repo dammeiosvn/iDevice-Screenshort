@@ -1,4 +1,10 @@
 const REPO = "dammeiosvn/iDevice-Screenshort";
+const TYPES = [
+  { id: "iphone", name: "iPhone" },
+  { id: "ipad", name: "iPad" },
+  { id: "macbook", name: "MacBook" },
+  { id: "watch", name: "Watch" }
+];
 const $ = (id) => document.getElementById(id);
 const view = $("view");
 const vctx = view.getContext("2d");
@@ -6,9 +12,17 @@ const holes = new Map();
 const images = new Map();
 const masks = new Map();
 let devices = [];
-let state = { device: 0, color: 0, orient: "Portrait", mode: "fill", shot: null, panX: 0.5, panY: 0.5 };
+let state = { type: "iphone", device: 0, color: 0, orient: "Portrait", mode: "fill", shot: null, panX: 0.5, panY: 0.5 };
 let raf = 0;
 let painting = false;
+
+function familyId(folder) {
+  const key = folder.toLowerCase();
+  if (key.includes("ipad")) return "ipad";
+  if (key.includes("mac")) return "macbook";
+  if (key.includes("watch")) return "watch";
+  return "iphone";
+}
 
 function loadImage(src) {
   if (images.has(src)) return images.get(src);
@@ -62,31 +76,20 @@ function measureHole(img) {
   }
   const ym = (y0 + y1) >> 1;
   const xm = (x0 + x1) >> 1;
-  let holeL = x0;
-  let seen = false;
-  for (let px = x0; px < x1; px++) {
-    if (A(px, ym) > 40) seen = true;
-    else if (seen && A(px, ym) < 16) { holeL = px; break; }
-  }
-  let holeR = x1;
-  seen = false;
-  for (let px = x1; px > x0; px--) {
-    if (A(px, ym) > 40) seen = true;
-    else if (seen && A(px, ym) < 16) { holeR = px; break; }
-  }
-  let holeT = y0;
-  seen = false;
-  for (let py = y0; py < y1; py++) {
-    if (A(xm, py) > 40) seen = true;
-    else if (seen && A(xm, py) < 16) { holeT = py; break; }
-  }
-  let holeB = y1;
-  seen = false;
-  for (let py = y1; py > y0; py--) {
-    if (A(xm, py) > 40) seen = true;
-    else if (seen && A(xm, py) < 16) { holeB = py; break; }
-  }
-  return { x: holeL, y: holeT, w: holeR - holeL + 1, h: holeB - holeT + 1 };
+  const edge = (from, to, step, read) => {
+    let seen = false;
+    for (let i = from; step > 0 ? i < to : i > to; i += step) {
+      const v = read(i);
+      if (v > 40) seen = true;
+      else if (seen && v < 16) return i;
+    }
+    return from;
+  };
+  const holeL = edge(x0, x1, 1, (px) => A(px, ym));
+  const holeR = edge(x1, x0, -1, (px) => A(px, ym));
+  const holeT = edge(y0, y1, 1, (py) => A(xm, py));
+  const holeB = edge(y1, y0, -1, (py) => A(xm, py));
+  return { x: holeL, y: holeT, w: Math.max(1, holeR - holeL + 1), h: Math.max(1, holeB - holeT + 1) };
 }
 
 function parseTree(paths) {
@@ -97,18 +100,18 @@ function parseTree(paths) {
     if (parts.length < 4) return;
     const model = parts[2];
     const file = parts.slice(3).join("/");
-    if (!models.has(model)) models.set(model, { name: model, folder: parts.slice(0, 3).join("/"), colors: new Map(), orients: new Set() });
+    if (!models.has(model)) models.set(model, { name: model, type: familyId(parts[1]), folder: parts.slice(0, 3).join("/"), colors: new Map(), orients: new Set() });
     const m = models.get(model);
     const orient = file.includes("Landscape") ? "Landscape" : file.includes("Portrait") ? "Portrait" : "";
     if (!orient) return;
     m.orients.add(orient);
     if (file.includes("_mask.png")) return;
-    const prefix = model + " " + orient;
-    const color = file.slice(prefix.length).replace(/\.png$/, "").trim();
+    const color = file.slice((model + " " + orient).length).replace(/\.png$/, "").trim();
     m.colors.set(color, color || "Gốc");
   });
   return [...models.values()].map((m) => ({
     name: m.name,
+    type: m.type,
     folder: m.folder,
     orients: [...m.orients],
     colors: [...m.colors.keys()].sort().map((c) => [c ? " " + c : "", c || "Gốc"])
@@ -122,15 +125,11 @@ async function loadCatalog() {
     const list = parseTree((data.tree || []).map((t) => t.path));
     if (list.length) return list;
   } catch (e) {}
-  return parseTree([
-    "idevice/iphone/iPhone 17 Pro Max/iPhone 17 Pro Max Portrait.png",
-    "idevice/iphone/iPhone 17 Pro/iPhone 17 Pro Portrait.png",
-    "idevice/iphone/iPhone 17/iPhone 17 Portrait.png",
-    "idevice/iphone/iPhone 16/iPhone 16 Portrait Black.png"
-  ]);
+  return [];
 }
 
-function device() { return devices[state.device]; }
+function list() { return devices.filter((d) => d.type === state.type); }
+function device() { return list()[state.device] || devices[0]; }
 
 function paths() {
   const d = device();
@@ -142,7 +141,6 @@ function paths() {
 function systemBg() {
   return matchMedia("(prefers-color-scheme: dark)").matches ? "#000000" : "#f2f2f7";
 }
-
 function bgColor() {
   const v = $("bg").value;
   if (v === "clear") return null;
@@ -151,7 +149,6 @@ function bgColor() {
   if (v === "dark") return "#000000";
   return $("bgColor").value;
 }
-
 function shotRect(screen) {
   if (!state.shot) return null;
   const ir = state.shot.width / state.shot.height;
@@ -170,7 +167,6 @@ function shotRect(screen) {
   }
   return { ix, iy, sw, sh };
 }
-
 function drawSign(ctx, w, h) {
   const name = $("signName").value.trim();
   if (!name) return;
@@ -185,13 +181,11 @@ function drawSign(ctx, w, h) {
   ctx.fillText(name, 0, 0);
   ctx.restore();
 }
-
 async function screenOf(frameImg) {
   const key = device().folder + state.orient;
   if (!holes.has(key)) holes.set(key, measureHole(frameImg));
   return holes.get(key);
 }
-
 async function compose() {
   const { frame, mask } = paths();
   const [frameImg, maskImg] = await Promise.all([loadImage(frame), loadImage(mask)]);
@@ -215,10 +209,7 @@ async function compose() {
   c.height = frameImg.height + pad * 2;
   const x = c.getContext("2d");
   const bg = bgColor();
-  if (bg) {
-    x.fillStyle = bg;
-    x.fillRect(0, 0, c.width, c.height);
-  }
+  if (bg) { x.fillStyle = bg; x.fillRect(0, 0, c.width, c.height); }
   if (pad) {
     x.shadowColor = "rgba(0,0,0,.28)";
     x.shadowBlur = pad;
@@ -227,9 +218,8 @@ async function compose() {
   x.drawImage(layer, pad, pad);
   return c;
 }
-
 async function paint() {
-  if (painting || !devices.length) return;
+  if (painting || !device()) return;
   painting = true;
   try {
     const c = await compose();
@@ -246,58 +236,77 @@ async function paint() {
   } catch (e) {}
   painting = false;
 }
-
 function requestPaint() {
   if (raf) return;
   raf = requestAnimationFrame(() => { raf = 0; paint(); });
 }
-
-function syncTools() {
-  document.querySelectorAll("#tools button").forEach((b) => {
-    const on = b.dataset.k === "orient" ? b.dataset.v === state.orient : b.dataset.v === state.mode;
-    b.classList.toggle("on", on);
-  });
+function closePops() {
+  ["typePop", "devicePop", "colorPop"].forEach((id) => { $(id).hidden = true; });
 }
-
-function renderColors() {
-  const box = $("colors");
+function fillPop(id, items, current, onPick) {
+  const box = $(id);
   box.replaceChildren();
-  const d = device();
-  $("colorBtn").textContent = d.colors[state.color][1];
-  d.colors.forEach((c, i) => {
+  if (!items.length) {
     const b = document.createElement("button");
     b.type = "button";
-    b.className = "chip" + (i === state.color ? " on" : "");
-    b.textContent = c[1];
-    b.onclick = () => {
-      state.color = i;
-      $("colorSheet").hidden = true;
-      renderColors();
-      requestPaint();
-    };
+    b.textContent = "Chưa có khung";
+    b.disabled = true;
+    box.appendChild(b);
+    return;
+  }
+  items.forEach((item, i) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = item.name;
+    b.className = item.on ? "on" : "";
+    b.onclick = () => { onPick(i, item); closePops(); };
     box.appendChild(b);
   });
 }
-
-function fillDevices() {
-  const sel = $("device");
-  sel.replaceChildren();
-  devices.forEach((d, i) => {
-    const o = document.createElement("option");
-    o.value = i;
-    o.textContent = d.name;
-    sel.appendChild(o);
+function syncTools() {
+  document.querySelectorAll("#tools button").forEach((b) => {
+    b.classList.toggle("on", b.dataset.k === "orient" ? b.dataset.v === state.orient : b.dataset.v === state.mode);
   });
-  sel.value = state.device;
 }
-
+function renderMenus() {
+  const type = TYPES.find((t) => t.id === state.type);
+  $("typeBtn").textContent = type.name;
+  const models = list();
+  const d = device();
+  $("deviceBtn").textContent = d ? d.name.replace(type.name + " ", "") : "Chưa có";
+  $("colorBtn").textContent = d ? d.colors[state.color][1] : "—";
+  fillPop("typePop", TYPES.map((t) => ({ name: t.name, on: t.id === state.type, id: t.id })), state.type, (i, item) => {
+    state.type = item.id;
+    state.device = 0;
+    state.color = 0;
+    const next = device();
+    if (next && !next.orients.includes(state.orient)) state.orient = next.orients[0];
+    syncTools();
+    renderMenus();
+    requestPaint();
+  });
+  fillPop("devicePop", models.map((m, i) => ({ name: m.name, on: i === state.device })), state.device, (i) => {
+    state.device = i;
+    state.color = 0;
+    if (!device().orients.includes(state.orient)) state.orient = device().orients[0];
+    syncTools();
+    renderMenus();
+    requestPaint();
+  });
+  fillPop("colorPop", d ? d.colors.map((c, i) => ({ name: c[1], on: i === state.color })) : [], state.color, (i) => {
+    state.color = i;
+    renderMenus();
+    requestPaint();
+  });
+}
 function readShot(file) {
   const img = new Image();
   img.onload = () => {
     state.shot = img;
     state.panX = 0.5;
     state.panY = 0.5;
-    if (device().orients.includes(img.width > img.height ? "Landscape" : "Portrait")) {
+    const d = device();
+    if (d && d.orients.includes(img.width > img.height ? "Landscape" : "Portrait")) {
       state.orient = img.width > img.height ? "Landscape" : "Portrait";
       syncTools();
     }
@@ -305,23 +314,22 @@ function readShot(file) {
   };
   img.src = URL.createObjectURL(file);
 }
-
+function togglePop(id) {
+  const open = $(id).hidden;
+  closePops();
+  $(id).hidden = !open;
+}
 $("empty").onclick = () => $("file").click();
 $("file").onchange = () => $("file").files[0] && readShot($("file").files[0]);
-$("device").onchange = () => {
-  state.device = +$("device").value;
-  state.color = 0;
-  if (!device().orients.includes(state.orient)) state.orient = device().orients[0];
-  syncTools();
-  renderColors();
-  requestPaint();
-};
-$("colorBtn").onclick = () => { $("colorSheet").hidden = false; };
-$("colorClose").onclick = () => { $("colorSheet").hidden = true; };
-$("colorSheet").onclick = (e) => { if (e.target === $("colorSheet")) $("colorSheet").hidden = true; };
+$("typeBtn").onclick = () => togglePop("typePop");
+$("deviceBtn").onclick = () => togglePop("devicePop");
+$("colorBtn").onclick = () => togglePop("colorPop");
+document.addEventListener("pointerdown", (e) => {
+  if (!e.target.closest(".menu")) closePops();
+});
 $("tools").onclick = (e) => {
   const b = e.target.closest("button");
-  if (!b) return;
+  if (!b || !device()) return;
   if (b.dataset.k === "orient" && device().orients.includes(b.dataset.v)) state.orient = b.dataset.v;
   if (b.dataset.k === "mode") state.mode = b.dataset.v;
   syncTools();
@@ -343,7 +351,6 @@ $("sheet").onclick = (e) => { if (e.target === $("sheet")) $("sheet").hidden = t
     requestPaint();
   };
 });
-
 let drag = null;
 view.onpointerdown = (e) => {
   if (state.mode !== "fill" || e.target === $("empty")) return;
@@ -357,8 +364,8 @@ view.onpointermove = (e) => {
   requestPaint();
 };
 view.onpointerup = () => { drag = null; };
-
 $("share").onclick = async () => {
+  if (!device()) return;
   const c = await compose();
   const blob = await new Promise((r) => c.toBlob(r, "image/png"));
   const file = new File([blob], "iscreenshort.png", { type: "image/png" });
@@ -374,8 +381,8 @@ $("share").onclick = async () => {
 
 loadCatalog().then((list) => {
   devices = list;
-  fillDevices();
-  renderColors();
+  if (!list.some((d) => d.type === state.type) && list[0]) state.type = list[0].type;
+  renderMenus();
   syncTools();
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", requestPaint);
   addEventListener("resize", requestPaint);
