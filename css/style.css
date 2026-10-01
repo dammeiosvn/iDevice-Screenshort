@@ -24,7 +24,7 @@ body {
   min-height: 100%; display: flex; flex-direction: column;
   font: 15px/1.25 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   background: var(--bg); color: var(--ink);
-  padding: calc(6px + var(--safe-t)) 14px calc(10px + var(--safe-b));
+  padding: calc(6px + var(--safe-t)) 14px calc(28px + var(--safe-b));
 }
 .top, .row { display: flex; align-items: center; gap: 6px; }
 .top { justify-content: space-between; margin-bottom: 8px; }
@@ -54,10 +54,12 @@ main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 }
 .pager button { width: 28px; height: 28px; border-radius: 50%; background: transparent; color: #fff; }
 .panel { margin-top: 10px; display: grid; gap: 8px; }
-.trio, .pair, .colors { display: grid; gap: 8px; align-items: end; }
+.trio, .pair { display: grid; gap: 8px; align-items: start; }
 .trio { grid-template-columns: 1fr 1.3fr 1fr; }
 .pair { grid-template-columns: 1fr 1fr; }
-.colors { grid-template-columns: auto auto 1fr; justify-items: start; }
+.stack { display: grid; gap: 8px; align-content: start; }
+.inline { display: flex; align-items: center; gap: 8px; min-height: 36px; color: var(--ink); font-size: 15px; }
+.ctl.mini { width: auto; padding: 0 10px; }
 .menu { position: relative; display: grid; gap: 4px; }
 .menu > span, .field, .slide, .colors { font-size: 12px; color: var(--muted); }
 .field, .slide { display: grid; gap: 4px; }
@@ -77,7 +79,7 @@ main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .seg button { flex: 1; height: 34px; font-size: 12px; }
 .seg button.on { background: var(--accent); color: #fff; }
 input[type="color"] {
-  width: 36px; height: 36px; padding: 0; border: 2px solid var(--line); border-radius: 50%; background: none;
+  width: 28px; height: 28px; padding: 0; border: 2px solid var(--line); border-radius: 50%; background: none; flex: none;
 }
 input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
 input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
@@ -85,7 +87,8 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
 .slide input { grid-column: 1 / -1; }
 .check { display: flex; gap: 8px; align-items: center; color: var(--ink); font-size: 15px; height: 32px; }
 .brand {
-  margin: 10px 0 0; text-align: center; font-weight: 650;
+  position: fixed; left: 0; right: 0; bottom: var(--safe-b);
+  margin: 0; height: 22px; text-align: center; font-weight: 650; pointer-events: none; z-index: 2;
   background: linear-gradient(100deg, var(--muted) 30%, #fff 50%, var(--muted) 70%);
   background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
   animation: wave 1.8s linear infinite;
