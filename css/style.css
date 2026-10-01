@@ -1,0 +1,100 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f2f2f7;
+  --card: #ffffff;
+  --ink: #1c1c1e;
+  --muted: #6e6e73;
+  --line: rgba(60, 60, 67, 0.18);
+  --accent: #007aff;
+  --fill: #e5e5ea;
+  --stage: #e5e5ea;
+  --safe-t: env(safe-area-inset-top);
+  --safe-b: env(safe-area-inset-bottom);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --card: #1c1c1e;
+    --ink: #f2f2f7;
+    --muted: #98989d;
+    --line: rgba(84, 84, 88, 0.55);
+    --accent: #0a84ff;
+    --fill: #2c2c2e;
+    --stage: #1c1c1e;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font: 16px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  padding: calc(8px + var(--safe-t)) 16px calc(16px + var(--safe-b));
+}
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+h1 { font-size: 22px; margin: 0; font-weight: 700; }
+.go, .file, .seg button, .chip {
+  border: 0;
+  border-radius: 12px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--fill);
+}
+.go {
+  background: var(--accent);
+  color: #fff;
+  padding: 8px 16px;
+  font-weight: 600;
+}
+.stage {
+  position: relative;
+  background: var(--stage);
+  border-radius: 20px;
+  min-height: 42vh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  touch-action: none;
+}
+#view { width: 100%; height: 42vh; display: block; }
+.empty {
+  position: absolute;
+  margin: 0;
+  color: var(--muted);
+  pointer-events: none;
+}
+.panel {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+}
+.row { display: flex; gap: 8px; }
+.file, .seg button { flex: 1; padding: 12px; }
+.field, .slide, .check, .swatch {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+select, input[type="color"] {
+  width: 100%;
+  font: inherit;
+  color: var(--ink);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+.chips, .seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip, .seg button { padding: 8px 12px; }
+.chip.on, .seg button.on { background: var(--accent); color: #fff; }
+.slide { grid-template-columns: 1fr auto; }
+.slide input { grid-column: 1 / -1; }
+.check { grid-template-columns: auto 1fr; align-items: center; color: var(--ink); font-size: 16px; }
+.hint { color: var(--muted); font-size: 13px; text-align: center; }
+@media (display-mode: standalone) { .hint { display: none; } }

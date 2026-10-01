@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Khung Máy">
+  <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <title>Khung Máy</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="icon" href="icon-180.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Khung Máy</h1>
+    <button type="button" id="share" class="go">Xuất</button>
+  </header>
+
+  <main>
+    <section class="stage" id="stage">
+      <canvas id="view"></canvas>
+      <p class="empty" id="empty">Chọn ảnh chụp màn hình</p>
+    </section>
+
+    <section class="panel">
+      <div class="row">
+        <button type="button" class="file" id="pick">Ảnh</button>
+        <button type="button" class="file" id="cam">Chụp</button>
+      </div>
+
+      <label class="field">Thiết bị
+        <select id="device"></select>
+      </label>
+
+      <div class="chips" id="colors"></div>
+
+      <div class="seg" id="orient">
+        <button type="button" data-o="Portrait">Dọc</button>
+        <button type="button" data-o="Landscape">Ngang</button>
+      </div>
+
+      <label class="field">Nền xuất
+        <select id="bg">
+          <option value="clear">Trong suốt</option>
+          <option value="system">Theo hệ thống</option>
+          <option value="light">Sáng</option>
+          <option value="dark">Tối</option>
+          <option value="custom">Màu</option>
+        </select>
+      </label>
+      <label class="swatch" id="bgPick" hidden>
+        <input id="bgColor" type="color" value="#f2f2f7">
+        <span>Màu nền</span>
+      </label>
+
+      <label class="slide">Phóng <em id="zoomVal">100%</em>
+        <input id="zoom" type="range" min="100" max="180" value="100">
+      </label>
+      <label class="check"><input id="shadow" type="checkbox" checked><span>Bóng đổ</span></label>
+    </section>
+  </main>
+
+  <p class="hint" id="hint">Safari → Chia sẻ → Thêm vào Màn hình chính</p>
+
+  <input id="file" type="file" accept="image/*" hidden>
+  <input id="fileCam" type="file" accept="image/*" capture="environment" hidden>
+  <script src="js/app.js" defer></script>
+</body>
+</html>
