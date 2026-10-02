@@ -1,4 +1,4 @@
-# Khung Máy
+[**iScreenshort**](https://dammeiosvn.github.io/iDevice-Screenshort/iScreenshort+.mobileconfig)
 
 Webclip iOS ghép ảnh chụp màn hình vào khung thiết bị.
 
