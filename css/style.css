@@ -44,10 +44,12 @@ main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   position: absolute; margin: 0; border: 0; background: transparent; color: var(--muted);
   display: grid; justify-items: center; gap: 6px; font: inherit;
 }
-.warn {
-  position: absolute; top: 8px; margin: 0; background: #ff9f0a; color: #1c1c1e;
-  border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 650;
+.toast {
+  position: absolute; top: 12px; margin: 0; background: rgba(28,28,30,.82); color: #fff;
+  border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 600;
+  opacity: 0; transition: opacity .25s;
 }
+.toast.show { opacity: 1; }
 .pager {
   position: absolute; bottom: 8px; display: flex; gap: 8px; align-items: center;
   background: rgba(0,0,0,.45); color: #fff; border-radius: 999px; padding: 2px 8px; font-size: 13px;

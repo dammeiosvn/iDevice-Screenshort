@@ -141,9 +141,9 @@ function shotRect(screen, img) {
   } else if (ir > sr) { sh = img.height; sw = sh * sr; }
   else { sw = img.width; sh = sw / sr; }
   sw /= z; sh /= z;
-  ix = state.mode === "fit" ? (img.width - sw) / 2 + (state.panX - 0.5) * sw : (img.width - sw) * state.panX;
-  iy = state.mode === "fit" ? (img.height - sh) / 2 + (state.panY - 0.5) * sh : (img.height - sh) * state.panY;
-  return { ix, iy, sw, sh, off: Math.abs(ir - sr) > 0.045 };
+  ix = (img.width - sw) * state.panX;
+  iy = (img.height - sh) * state.panY;
+  return { ix, iy, sw, sh, off: Math.abs(ir - sr) > 0.06 };
 }
 function drawSign(ctx, w, h) {
   const name = $("signName").value.trim();
@@ -215,7 +215,7 @@ async function compose(img) {
   const dw = layer.width * scale, dh = layer.height * scale;
   if (amount) { x.shadowColor = `rgba(0,0,0,${0.15 + amount * 0.4})`; x.shadowBlur = pad * scale; x.shadowOffsetY = pad * scale * 0.3; }
   x.drawImage(layer, (c.width - dw) / 2, (c.height - dh) / 2, dw, dh);
-  return { canvas: c, off: !!(rect && rect.off && state.mode === "fill") };
+  return { canvas: c, off: !!(rect && rect.off) };
 }
 async function paint() {
   if (painting || !device()) return;
@@ -231,14 +231,31 @@ async function paint() {
     const w = made.canvas.width * s, h = made.canvas.height * s;
     vctx.drawImage(made.canvas, (view.width - w) / 2, (view.height - h) / 2, w, h);
     $("empty").hidden = shots.length > 0;
-    $("warn").hidden = !made.off;
+    if (made.off) toast("di chuyển để khớp");
     $("pager").hidden = shots.length < 2;
     $("shareAll").hidden = shots.length < 2;
     $("count").textContent = `${state.index + 1}/${shots.length || 1}`;
   } catch (e) {}
   painting = false;
 }
+let toastTimer = 0;
+let toasted = new WeakSet();
+let replaceOnPick = false;
 function requestPaint() { if (raf) return; raf = requestAnimationFrame(() => { raf = 0; paint(); }); }
+function toast(text) {
+  const img = shot();
+  if (!img || toasted.has(img)) return;
+  toasted.add(img);
+  const el = $("toast");
+  el.textContent = text;
+  el.hidden = false;
+  requestAnimationFrame(() => el.classList.add("show"));
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.classList.remove("show");
+    setTimeout(() => { el.hidden = true; }, 250);
+  }, 1600);
+}
 function save() {
   localStorage.setItem(KEY, JSON.stringify({
     type: state.type, deviceName: state.deviceName, colorName: state.colorName,
@@ -314,8 +331,10 @@ function addFiles(files) {
   [...files].forEach((file) => {
     const img = new Image();
     img.onload = () => {
-      shots.push(img);
-      state.index = shots.length - 1;
+      if (replaceOnPick && shots.length) shots[state.index] = img;
+      else { shots.push(img); state.index = shots.length - 1; }
+      replaceOnPick = false;
+      state.zoom = 1; state.panX = 0.5; state.panY = 0.5;
       if (device() && device().orients.includes(img.width > img.height ? "Landscape" : "Portrait")) {
         state.orient = img.width > img.height ? "Landscape" : "Portrait";
         syncTools();
@@ -334,7 +353,10 @@ async function shareFiles(files, name) {
   }
 }
 $("empty").onclick = () => $("file").click();
-$("file").onchange = () => $("file").files.length && addFiles($("file").files);
+$("file").onchange = () => {
+  if (!$("file").files.length) { replaceOnPick = false; return; }
+  addFiles($("file").files);
+};
 $("typeBtn").onclick = () => { const open = $("typePop").hidden; closePops(); $("typePop").hidden = !open; };
 $("deviceBtn").onclick = () => { const open = $("devicePop").hidden; closePops(); $("devicePop").hidden = !open; };
 $("colorBtn").onclick = () => { const open = $("colorPop").hidden; closePops(); $("colorPop").hidden = !open; };
@@ -376,39 +398,40 @@ $("prev").onclick = () => { state.index = (state.index - 1 + shots.length) % sho
 $("next").onclick = () => { state.index = (state.index + 1) % shots.length; requestPaint(); };
 const pts = new Map();
 let pinch = 0;
+let moved = 0;
 view.onpointerdown = (e) => {
   if (e.target === $("empty")) return;
   view.setPointerCapture(e.pointerId);
-  pts.set(e.pointerId, { x: e.clientX, y: e.clientY, px: state.panX, py: state.panY });
+  pts.set(e.pointerId, { x: e.clientX, y: e.clientY, ox: e.clientX, oy: e.clientY, px: state.panX, py: state.panY, z: state.zoom });
+  moved = 0;
   if (pts.size === 2) pinch = dist();
 };
 function dist() {
   const [a, b] = [...pts.values()];
-  return Math.hypot(a.x - b.x, a.y - b.y);
+  return Math.hypot(a.x - b.x, a.y - b.y) || 1;
 }
 view.onpointermove = (e) => {
-  if (!pts.has(e.pointerId)) return;
+  if (!pts.has(e.pointerId) || !shot()) return;
   const p = pts.get(e.pointerId);
+  moved = Math.max(moved, Math.hypot(e.clientX - p.ox, e.clientY - p.oy));
   p.x = e.clientX; p.y = e.clientY;
-  if (pts.size === 2) {
+  if (pts.size >= 2) {
     const d = dist();
-    state.zoom = Math.min(3, Math.max(1, state.zoom * (d / pinch)));
-    pinch = d;
+    state.zoom = Math.min(4, Math.max(0.4, p.z * (d / pinch)));
     requestPaint();
     return;
   }
-  if (!shot()) return;
-  state.panX = Math.min(1, Math.max(0, p.px - (e.clientX - p.x) / 220));
-  state.panY = Math.min(1, Math.max(0, p.py - (e.clientY - p.y) / 220));
+  state.panX = p.px - (e.clientX - p.ox) / 180;
+  state.panY = p.py - (e.clientY - p.oy) / 180;
   requestPaint();
 };
 view.onpointerup = (e) => {
   const p = pts.get(e.pointerId);
-  if (p && pts.size === 1 && shots.length > 1 && Math.abs(e.clientX - p.x) > 70 && Math.abs(e.clientX - p.x) > Math.abs(e.clientY - p.y)) {
-    state.index = (state.index + (e.clientX < p.x ? 1 : -1) + shots.length) % shots.length;
-    requestPaint();
-  }
   pts.delete(e.pointerId);
+  if (p && pts.size === 0 && moved < 8 && shot()) {
+    replaceOnPick = true;
+    $("file").click();
+  }
   if (pts.size < 2) save();
 };
 $("share").onclick = async () => {
