@@ -1,5 +1,5 @@
-const CACHE = "iscreenshort-6";
-const SHELL = ["./index.html", "./css/style.css?v=6", "./js/app.js?v=6", "./manifest.webmanifest"];
+const CACHE = "iscreenshort-7";
+const SHELL = ["./index.html", "./css/style.css?v=7", "./js/app.js?v=7", "./manifest.webmanifest"];
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });

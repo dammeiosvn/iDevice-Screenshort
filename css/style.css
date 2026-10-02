@@ -24,7 +24,7 @@ body {
   min-height: 100%; display: flex; flex-direction: column;
   font: 15px/1.25 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   background: var(--bg); color: var(--ink);
-  padding: calc(6px + var(--safe-t)) 14px calc(28px + var(--safe-b));
+  padding: calc(6px + var(--safe-t)) 14px calc(36px + var(--safe-b));
 }
 .top, .row { display: flex; align-items: center; gap: 6px; }
 .top { justify-content: space-between; margin-bottom: 8px; }
@@ -57,9 +57,10 @@ main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .trio, .pair { display: grid; gap: 8px; align-items: start; }
 .trio { grid-template-columns: 1fr 1.3fr 1fr; }
 .pair { grid-template-columns: 1fr 1fr; }
-.stack { display: grid; gap: 8px; align-content: start; }
-.inline { display: flex; align-items: center; gap: 8px; min-height: 36px; color: var(--ink); font-size: 15px; }
-.ctl.mini { width: auto; padding: 0 10px; }
+.tune { display: flex; align-items: center; gap: 10px; }
+.tune .slide { flex: 1; min-width: 0; }
+.inline { display: flex; align-items: center; gap: 6px; color: var(--ink); font-size: 14px; white-space: nowrap; }
+.ctl.mini { width: auto; height: 28px; padding: 0 8px; }
 .menu { position: relative; display: grid; gap: 4px; }
 .menu > span, .field, .slide, .colors { font-size: 12px; color: var(--muted); }
 .field, .slide { display: grid; gap: 4px; }
@@ -87,8 +88,12 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
 .slide input { grid-column: 1 / -1; }
 .check { display: flex; gap: 8px; align-items: center; color: var(--ink); font-size: 15px; height: 32px; }
 .brand {
-  position: fixed; left: 0; right: 0; bottom: var(--safe-b);
-  margin: 0; height: 22px; text-align: center; font-weight: 650; pointer-events: none; z-index: 2;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 3;
+  margin: 0; padding: 4px 0 calc(4px + var(--safe-b));
+  text-align: center; font-weight: 650; pointer-events: none;
+  background: var(--bg);
+}
+.brand span {
   background: linear-gradient(100deg, var(--muted) 30%, #fff 50%, var(--muted) 70%);
   background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
   animation: wave 1.8s linear infinite;

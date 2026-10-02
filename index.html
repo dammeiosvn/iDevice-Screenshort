@@ -14,7 +14,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icon-180.png">
   <link rel="icon" href="icon-180.png">
-  <link rel="stylesheet" href="css/style.css?v=6">
+  <link rel="stylesheet" href="css/style.css?v=7">
 </head>
 <body>
   <header class="top">
@@ -66,47 +66,42 @@
         <button type="button" data-k="mode" data-v="fill">Fill</button>
       </div>
 
-      <div class="pair">
-        <div class="stack">
-          <label class="field">Nền xuất
-            <select id="bg">
-              <option value="clear">Trong suốt</option>
-              <option value="system">Hệ thống</option>
-              <option value="light">Sáng</option>
-              <option value="dark">Tối</option>
-              <option value="custom">Màu</option>
-              <option value="grad">Gradient</option>
-              <option value="image">Ảnh nền</option>
-            </select>
-          </label>
-          <label class="field">Cỡ xuất
-            <select id="size">
-              <option value="full">Gốc</option>
-              <option value="1080">1080</option>
-              <option value="story">Story 1080×1920</option>
-            </select>
-          </label>
-        </div>
-        <div class="stack">
-          <label class="field">Ký tên
-            <button type="button" class="ctl" id="signBtn">Ký tên</button>
-          </label>
-          <div class="inline">
-            <input id="bgColor" type="color" value="#0a84ff" aria-label="Màu nền">
-            <span>Màu nền</span>
-            <label id="bg2wrap" hidden><input id="bgColor2" type="color" value="#5e5ce6" aria-label="Màu 2"></label>
-            <button type="button" class="ctl mini" id="bgImgBtn" hidden>Ảnh</button>
-          </div>
-          <label class="check"><input id="shadow" type="checkbox"><span>Bóng đổ</span></label>
-        </div>
+      <div class="trio">
+        <label class="field">Nền xuất
+          <select id="bg">
+            <option value="clear">Trong suốt</option>
+            <option value="system">Hệ thống</option>
+            <option value="light">Sáng</option>
+            <option value="dark">Tối</option>
+            <option value="custom">Màu</option>
+            <option value="grad">Gradient</option>
+            <option value="image">Ảnh nền</option>
+          </select>
+        </label>
+        <label class="field">Cỡ xuất
+          <select id="size">
+            <option value="full">Gốc</option>
+            <option value="1080">1080</option>
+            <option value="story">Story</option>
+          </select>
+        </label>
+        <label class="field">Ký tên
+          <button type="button" class="ctl" id="signBtn">Ký tên</button>
+        </label>
       </div>
-      <label class="slide">Đậm <em id="shadeVal">40</em>
-        <input id="shade" type="range" min="0" max="100" value="40">
-      </label>
+      <div class="tune">
+        <label class="inline"><input id="bgColor" type="color" value="#0a84ff" aria-label="Màu nền"><span>Màu nền</span></label>
+        <label class="inline" id="bg2wrap" hidden><input id="bgColor2" type="color" value="#5e5ce6" aria-label="Màu 2"><span>Màu 2</span></label>
+        <button type="button" class="ctl mini" id="bgImgBtn" hidden>Ảnh</button>
+        <label class="check"><input id="shadow" type="checkbox"><span>Bóng đổ</span></label>
+        <label class="slide">Đậm <em id="shadeVal">40</em>
+          <input id="shade" type="range" min="0" max="100" value="40">
+        </label>
+      </div>
     </section>
   </main>
 
-  <p class="brand">Sentechtipsvn</p>
+  <p class="brand"><span>Sentechtipsvn</span></p>
 
   <div class="sheet" id="sheet" hidden>
     <div class="sheet-card">
@@ -145,6 +140,6 @@
 
   <input id="file" type="file" accept="image/*" multiple hidden>
   <input id="bgFile" type="file" accept="image/*" hidden>
-  <script src="js/app.js?v=6" defer></script>
+  <script src="js/app.js?v=7" defer></script>
 </body>
 </html>
