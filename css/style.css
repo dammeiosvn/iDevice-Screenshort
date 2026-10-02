@@ -24,7 +24,7 @@ body {
   min-height: 100%; display: flex; flex-direction: column;
   font: 15px/1.25 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   background: var(--bg); color: var(--ink);
-  padding: calc(6px + var(--safe-t)) 14px calc(36px + var(--safe-b));
+  padding: calc(6px + var(--safe-t)) 14px calc(22px + var(--safe-b));
 }
 .top, .row { display: flex; align-items: center; gap: 6px; }
 .top { justify-content: space-between; margin-bottom: 8px; }
@@ -91,9 +91,9 @@ input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
 .check { display: flex; gap: 8px; align-items: center; color: var(--ink); font-size: 15px; height: 32px; }
 .brand {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 3;
-  margin: 0; padding: 4px 0 calc(4px + var(--safe-b));
+  margin: 0; padding: 0 0 8px;
   text-align: center; font-weight: 650; pointer-events: none;
-  background: var(--bg);
+  background: var(--bg); line-height: 1;
 }
 .brand span {
   background: linear-gradient(100deg, var(--muted) 30%, #fff 50%, var(--muted) 70%);

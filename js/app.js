@@ -457,3 +457,16 @@ loadCatalog().then((list) => {
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
   requestPaint();
 });
+
+function pinBrand() {
+  const el = document.querySelector(".brand");
+  const vv = window.visualViewport;
+  if (!el || !vv) return;
+  const covered = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
+  el.style.bottom = covered + "px";
+}
+pinBrand();
+if (window.visualViewport) {
+  visualViewport.addEventListener("resize", pinBrand);
+  visualViewport.addEventListener("scroll", pinBrand);
+}
