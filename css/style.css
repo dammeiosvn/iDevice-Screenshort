@@ -19,7 +19,7 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html, body { margin: 0; height: 100%; }
+html, body { margin: 0; height: 100%; touch-action: manipulation; }
 body {
   min-height: 100%; display: flex; flex-direction: column;
   font: 15px/1.25 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;

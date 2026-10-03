@@ -133,7 +133,7 @@ function shotRect(screen, img) {
   if (!img) return null;
   const ir = img.width / img.height;
   const sr = screen.w / screen.h;
-  const z = state.zoom;
+  const z = 1;
   let sw, sh, ix, iy;
   if (state.mode === "fit") {
     if (ir > sr) { sw = img.width; sh = sw / sr; }
@@ -397,34 +397,22 @@ $("corners").onclick = (e) => {
 $("prev").onclick = () => { state.index = (state.index - 1 + shots.length) % shots.length; requestPaint(); };
 $("next").onclick = () => { state.index = (state.index + 1) % shots.length; requestPaint(); };
 const pts = new Map();
-let pinch = 0;
 let moved = 0;
 view.onpointerdown = (e) => {
-  if (e.target === $("empty")) return;
+  if (e.target === $("empty") || e.touches && e.touches.length > 1) return;
   view.setPointerCapture(e.pointerId);
-  pts.set(e.pointerId, { x: e.clientX, y: e.clientY, ox: e.clientX, oy: e.clientY, px: state.panX, py: state.panY, z: state.zoom });
+  pts.set(e.pointerId, { ox: e.clientX, oy: e.clientY, px: state.panX, py: state.panY });
   moved = 0;
-  if (pts.size === 2) pinch = dist();
 };
-function dist() {
-  const [a, b] = [...pts.values()];
-  return Math.hypot(a.x - b.x, a.y - b.y) || 1;
-}
 view.onpointermove = (e) => {
-  if (!pts.has(e.pointerId) || !shot()) return;
+  if (!pts.has(e.pointerId) || !shot() || pts.size > 1) return;
   const p = pts.get(e.pointerId);
   moved = Math.max(moved, Math.hypot(e.clientX - p.ox, e.clientY - p.oy));
-  p.x = e.clientX; p.y = e.clientY;
-  if (pts.size >= 2) {
-    const d = dist();
-    state.zoom = Math.min(4, Math.max(0.4, p.z * (d / pinch)));
-    requestPaint();
-    return;
-  }
   state.panX = p.px - (e.clientX - p.ox) / 180;
   state.panY = p.py - (e.clientY - p.oy) / 180;
   requestPaint();
 };
+document.addEventListener("gesturestart", (e) => e.preventDefault());
 view.onpointerup = (e) => {
   const p = pts.get(e.pointerId);
   pts.delete(e.pointerId);
